@@ -79,7 +79,7 @@ const HomePage: React.FC = () => {
     { icon: Globe, value: '1,500+', label: 'Data Annotated' },
     { icon: BadgeSwissFrancIcon, value: 'Poetry Or', label: 'Prose' },
     { icon: TrendingUp, value: '99.99%', label: 'Best Accuracy' },
-    { icon: Zap, value: '0.12s', label: 'Fastest Model' }
+    { icon: Zap, value: '0.12s', label: 'Best Model' }
   ];
 
   return (
