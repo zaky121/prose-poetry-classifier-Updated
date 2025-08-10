@@ -6,8 +6,7 @@ import HomePage from './pages/HomePage';
 import ClassifierPage from './pages/ClassifierPage';
 import ProsePage from './pages/ProsePage';
 import PoetryPage from './pages/PoetryPage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
+
 
 function App() {
   return (
@@ -25,8 +24,7 @@ function App() {
           <Route path="/classifier" element={<ClassifierPage />} />
           <Route path="/prose" element={<ProsePage />} />
           <Route path="/poetry" element={<PoetryPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
+          
         </Routes>
         <Footer />
       </div>

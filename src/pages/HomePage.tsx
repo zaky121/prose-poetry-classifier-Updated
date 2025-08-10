@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Brain, BookOpen, Feather, Sparkles, ArrowRight, Globe, Users, TrendingUp, Zap, Shield, Award, Star, Heart, Flame } from 'lucide-react';
+import { Brain, BookOpen, Feather, Sparkles, ArrowRight, Globe, Users, TrendingUp, Zap, Shield, Award, Star, Heart, Flame, MousePointerSquareDashed, ZapIcon, BadgeSwissFrancIcon } from 'lucide-react';
 
 const HomePage: React.FC = () => {
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; size: number; delay: number }>>([]);
@@ -76,8 +76,8 @@ const HomePage: React.FC = () => {
   ];
 
   const stats = [
-    { icon: Globe, value: '50,000+', label: 'Texts Analyzed' },
-    { icon: Users, value: '2,500+', label: 'Active Users' },
+    { icon: Globe, value: '1,500+', label: 'Data Annotated' },
+    { icon: BadgeSwissFrancIcon, value: 'Poetry Or', label: 'Prose' },
     { icon: TrendingUp, value: '99.99%', label: 'Best Accuracy' },
     { icon: Zap, value: '0.12s', label: 'Fastest Model' }
   ];

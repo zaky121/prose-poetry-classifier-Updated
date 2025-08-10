@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, BookOpen, Feather, Home, Brain, User, UserPlus, Sparkles } from 'lucide-react';
+import { Menu, X, BookOpen, Feather, Home, Brain, Sparkles } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,11 +11,6 @@ const Navbar: React.FC = () => {
     { path: '/classifier', label: 'Classifier', icon: Brain },
     { path: '/prose', label: 'Prose', icon: BookOpen },
     { path: '/poetry', label: 'Poetry', icon: Feather },
-  ];
-
-  const authItems = [
-    { path: '/login', label: 'Login', icon: User },
-    { path: '/signup', label: 'Sign Up', icon: UserPlus },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -56,27 +51,6 @@ const Navbar: React.FC = () => {
             })}
           </div>
 
-          {/* Auth Links */}
-          <div className="hidden md:flex items-center space-x-3">
-            {authItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-500 group ${
-                    item.path === '/signup'
-                      ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700 text-white shadow-2xl hover:shadow-fuchsia-500/50 hover:scale-105'
-                      : 'text-gray-200 hover:text-white hover:bg-gradient-to-r hover:from-violet-500/20 hover:to-purple-500/20 hover:scale-105'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${item.path === '/signup' ? 'animate-pulse' : 'group-hover:animate-spin'}`} />
-                  <span className="font-medium font-serif">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
           {/* Mobile menu button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -90,7 +64,7 @@ const Navbar: React.FC = () => {
         {isOpen && (
           <div className="md:hidden py-4 border-t border-white/20 bg-gradient-to-r from-purple-900/50 to-pink-900/50 backdrop-blur-lg">
             <div className="space-y-2">
-              {[...navItems, ...authItems].map((item) => {
+              {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
