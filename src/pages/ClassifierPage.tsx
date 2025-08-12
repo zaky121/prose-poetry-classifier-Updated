@@ -297,7 +297,7 @@ const ClassifierPage: React.FC = () => {
               
               {!result && !isAnalyzing && (
                 <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-violet-400/30 text-center group hover:border-violet-400/50 transition-all duration-500">
-                  <div className="text-6xl mb-4 animate-bounce ">🇸🇴</div>
+                  <div className="text-6xl mb-4 animate-bounce "></div>
                   <h3 className="text-2xl font-bold text-white mb-2 font-serif group-hover:text-pink-200 transition-colors duration-300">Ready to Analyze</h3>
                   <p className="text-gray-200 font-light">
                     Enter Somali text to classify SomBERTa model

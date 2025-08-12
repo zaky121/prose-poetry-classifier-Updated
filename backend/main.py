@@ -1,5 +1,4 @@
 import time 
-"""FastAPI Backend for Somali Text Classification with SomBERTa Model"""
 
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -122,15 +121,7 @@ def predict_somberta(text: str) -> Dict[str, Any]:
         # Basic length checks
         if len(processed_text.strip()) < 30 or len(processed_text.strip().split()) < 5:
             processing_time = time.time() - start_time
-            return {
-                "model": "SomBERTa",
-                "type": "prose",
-                "confidence": 0.6,
-                "processing_time": processing_time,
-                "accuracy": "94.8%",
-                "speed": "0.25s"
-            }
-        
+            
         # Tokenization and prediction
         inputs = somberta_tokenizer(
             processed_text,
@@ -148,29 +139,10 @@ def predict_somberta(text: str) -> Dict[str, Any]:
             predicted_class = torch.argmax(logits, dim=1).item()
             confidence = float(probabilities[predicted_class])
         
-        processing_time = time.time() - start_time
-        
-        return {
-            "model": "SomBERTa",
-            "type": "poetry" if predicted_class == 1 else "prose",
-            "confidence": confidence,
-            "processing_time": processing_time,
-            "accuracy": "94.8%",
-            "speed": "0.25s"
-        }
         
     except Exception as e:
         logger.error(f"SomBERTa prediction error: {str(e)}")
-        processing_time = time.time() - start_time
-        return {
-            "model": "SomBERTa",
-            "type": "prose",
-            "confidence": 0.5,
-            "processing_time": processing_time,
-            "accuracy": "94.8%",
-            "speed": "0.25s"
-        }
-
+     
 # ================================
 # API ENDPOINTS
 # ================================
@@ -218,11 +190,6 @@ async def get_model():
     """Get information about the model"""
     return {
         "model": {
-            "id": "somberta",
-            "name": "SomBERTa",
-            "accuracy": "94.8%",
-            "speed": "0.25s",
-            "description": "Specialized BERT model fine-tuned for Somali language",
             "endpoint": "/classify/somberta",
             "loaded": somberta_model is not None
         }
