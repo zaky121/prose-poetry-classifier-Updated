@@ -3,9 +3,10 @@ import { BookOpen, Feather, Sparkles, Brain, Zap, Shield, Award, PieChart as Pie
 
 interface ModelResult {
   model: string;
-  type: 'prose' | 'poetry';
+  type: 'prose' | 'poetry' | 'error';
   confidence: number;
   processingTime: number;
+  errorMessage?: string;
 }
 
 const ClassifierPage: React.FC = () => {
@@ -13,6 +14,7 @@ const ClassifierPage: React.FC = () => {
   const [result, setResult] = useState<ModelResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; size: number }>>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const sombertaModel = {
     id: 'somberta',
@@ -51,15 +53,22 @@ const ClassifierPage: React.FC = () => {
         body: JSON.stringify({ text: inputText }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const data = await response.json();
+      
+      if (!response.ok) {
+        // Handle validation errors
+        return {
+          model: sombertaModel.name,
+          type: 'error',
+          confidence: 0,
+          processingTime: 0.1,
+          errorMessage: data.detail
+        };
+      }
       
       return {
         model: data.model,
-        type: data.type as 'prose' | 'poetry',
+        type: data.type.toLowerCase() as 'prose' | 'poetry',
         confidence: data.confidence,
         processingTime: data.processing_time
       };
@@ -81,16 +90,39 @@ const ClassifierPage: React.FC = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!text.trim()) return;
+    if (!text.trim()) {
+      setError('Text input cannot be empty');
+      return;
+    }
+    
+    // Basic client-side validation
+    if (/^\d+$/.test(text.replace(/\s/g, ''))) {
+      setError('Input contains only numbers. Please enter text.');
+      return;
+    }
+    
+    // Check for emojis using a simple pattern
+    const emojiPattern = /[\u{1F600}-\u{1F6FF}]/gu;
+    if (emojiPattern.test(text)) {
+      setError('Emojis are not allowed. Please remove them.');
+      return;
+    }
     
     setIsAnalyzing(true);
     setResult(null);
+    setError(null);
     
     try {
       const singleResult = await classifyWithModel(text);
       setResult(singleResult);
+      
+      // If the backend returned an error, show it
+      if (singleResult.type === 'error' && singleResult.errorMessage) {
+        setError(singleResult.errorMessage);
+      }
     } catch (error) {
       console.error('Classification error:', error);
+      setError('Failed to analyze text. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -98,6 +130,21 @@ const ClassifierPage: React.FC = () => {
 
   // Pie Chart Component
   const PieChart: React.FC<{ result: ModelResult }> = ({ result }) => {
+    if (result.type === 'error') {
+      return (
+        <div className="relative w-48 h-48 mx-auto flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-4xl font-bold font-serif text-red-500 animate-pulse">
+              !
+            </div>
+            <div className="text-white font-medium text-lg mt-2 font-serif">
+              Error
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     const isPoetry = result.type === 'poetry';
     const confidence = result.confidence * 100;
     const remaining = 100 - confidence;
@@ -214,10 +261,19 @@ const ClassifierPage: React.FC = () => {
                 
                 <textarea
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    setError(null);
+                  }}
                   placeholder="Halkan ku qor qoraalkaaga si loo kala sooco haddii uu yahay Tix iyo Tiraab..."
-                  className="w-full h-64 bg-gradient-to-br from-black/30 to-black/10 border border-violet-400/30 rounded-xl p-4 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-400/60 resize-none backdrop-blur-sm transition-all duration-300 font-serif"
+                  className="w-full h-64 bg-gradient-to-br from-black/30 to-black/10 border border-violet-400/30 rounded-xl p-4 text-black placeholder-gray-500-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-400/60 resize-none backdrop-blur-sm transition-all duration-300 font-serif"
                 />
+                
+                {error && (
+                  <div className="mt-4 p-3 bg-red-900/50 border border-red-500 rounded-xl text-red-200 animate-pulse">
+                    {error}
+                  </div>
+                )}
                 
                 <button
                   onClick={handleAnalyze}
@@ -236,6 +292,21 @@ const ClassifierPage: React.FC = () => {
                     </div>
                   )}
                 </button>
+                
+                <div className="mt-4 text-sm text-gray-300">
+                  <p className="flex items-center mb-1">
+                    <Zap className="w-4 h-4 mr-2 text-yellow-300" />
+                    <span>Enter Somali text only (English will be rejected)</span>
+                  </p>
+                  <p className="flex items-center mb-1">
+                    <Shield className="w-4 h-4 mr-2 text-blue-300" />
+                    <span>No numbers only or emojis allowed</span>
+                  </p>
+                  <p className="flex items-center">
+                    <Award className="w-4 h-4 mr-2 text-green-300" />
+                    <span>Minimum 5 words for accurate classification</span>
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -252,20 +323,22 @@ const ClassifierPage: React.FC = () => {
                     
                     <PieChart result={result} />
                     
-                    <div className="mt-8 text-center">
-                      <div className={`inline-flex items-center px-8 py-4 rounded-2xl text-2xl font-bold font-serif shadow-2xl animate-pulse ${
-                        result.type === 'poetry' 
-                          ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 shadow-violet-500/50' 
-                          : 'bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 shadow-pink-500/50'
-                      } shadow-2xl`}>
-                        {result.type === 'poetry' ? (
-                          <Feather className="w-8 h-8 mr-3 animate-bounce" />
-                        ) : (
-                          <BookOpen className="w-8 h-8 mr-3 animate-bounce" />
-                        )}
-                        {result.type === 'poetry' ? 'Tix' : 'Tiraab'}
+                    {result.type !== 'error' && (
+                      <div className="mt-8 text-center">
+                        <div className={`inline-flex items-center px-8 py-4 rounded-2xl text-2xl font-bold font-serif shadow-2xl animate-pulse ${
+                          result.type === 'poetry' 
+                            ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 shadow-violet-500/50' 
+                            : 'bg-gradient-to-r from-fuchsia-500 via-pink-500 to-rose-500 shadow-pink-500/50'
+                        } shadow-2xl`}>
+                          {result.type === 'poetry' ? (
+                            <Feather className="w-8 h-8 mr-3 animate-bounce" />
+                          ) : (
+                            <BookOpen className="w-8 h-8 mr-3 animate-bounce" />
+                          )}
+                          {result.type === 'poetry' ? 'Tix' : 'Tiraab'}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Model Information */}
@@ -276,20 +349,30 @@ const ClassifierPage: React.FC = () => {
                         <span className="text-gray-200 font-light">Model:</span>
                         <span className="text-white font-medium font-serif">{sombertaModel.name}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-200 font-light">Confidence:</span>
-                        <span className="text-pink-300 font-bold font-serif animate-pulse">{(result.confidence * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-200 font-light">Processing Time:</span>
-                        <span className="text-pink-300 font-bold font-serif">{result.processingTime.toFixed(3)}s</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-200 font-light">Classification:</span>
-                        <span className={`font-bold font-serif ${result.type === 'poetry' ? 'text-violet-300' : 'text-pink-300'}`}>
-                          {result.type === 'poetry' ? 'Poetry (Tix)' : 'Prose (Tiraab)'}
-                        </span>
-                      </div>
+                      {result.type !== 'error' && (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-200 font-light">Confidence:</span>
+                            <span className="text-pink-300 font-bold font-serif animate-pulse">{(result.confidence * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-200 font-light">Processing Time:</span>
+                            <span className="text-pink-300 font-bold font-serif">{result.processingTime.toFixed(3)}s</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-200 font-light">Classification:</span>
+                            <span className={`font-bold font-serif ${result.type === 'poetry' ? 'text-violet-300' : 'text-pink-300'}`}>
+                              {result.type === 'poetry' ? 'Poetry (Tix)' : 'Prose (Tiraab)'}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {result.type === 'error' && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-200 font-light">Status:</span>
+                          <span className="text-red-300 font-bold font-serif">Validation Error</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -298,9 +381,9 @@ const ClassifierPage: React.FC = () => {
               {!result && !isAnalyzing && (
                 <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-violet-400/30 text-center group hover:border-violet-400/50 transition-all duration-500">
                   <div className="text-6xl mb-4 animate-bounce "></div>
-                  <h3 className="text-2xl font-bold text-white mb-2 font-serif group-hover:text-pink-200 transition-colors duration-300">Ready to Analyze</h3>
+                  <h3 className="text-2xl font-bold text- mb-2 font-serif group-hover:text-pink-200 transition-colors duration-300">Ready to Analyze</h3>
                   <p className="text-gray-200 font-light">
-                    Enter Somali text to classify SomBERTa model
+                    Enter Somali text to classify with SomBERTa model
                   </p>
                 </div>
               )}

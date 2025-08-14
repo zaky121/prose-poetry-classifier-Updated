@@ -1,6 +1,6 @@
 import time 
-
 import os
+import sys
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -52,7 +52,30 @@ SOMALI_ALPHABET = (
     "aA" "bB" "cC" "dD" "eE" "fF" "gG" "hH" "iI" "jJ" "kK" "lL" "mM" "nN"
     "oO" "qQ" "rR" "sS" "tT" "uU" "wW" "xX" "yY"
 )
-ALLOWED_CHARS = SOMALI_ALPHABET + " ,.!?()-'"
+ALLOWED_CHARS = SOMALI_ALPHABET + " ,.!?()-'0123456789"
+EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F680-\U0001F6FF"  # transport & map symbols
+    "\U0001F1E0-\U0001F1FF"  # flags (iOS)
+    "\U00002500-\U00002BEF"  # Chinese char
+    "\U00002702-\U000027B0"
+    "\U00002702-\U000027B0"
+    "\U000024C2-\U0001F251"
+    "\U0001f926-\U0001f937"
+    "\U00010000-\U0010ffff"
+    "\u2640-\u2642" 
+    "\u2600-\u2B55"
+    "\u200d"
+    "\u23cf"
+    "\u23e9"
+    "\u231a"
+    "\ufe0f"  # dingbats
+    "\u3030"
+    "]+",
+    flags=re.UNICODE
+)
 
 # Global model variables
 somberta_model = None
@@ -73,6 +96,66 @@ def load_somberta():
     except Exception as e:
         logger.error(f"❌ Error loading SomBERTa: {str(e)}")
         return False
+
+# ================================
+# TEXT VALIDATION FUNCTIONS
+# ================================
+
+def is_somali(text: str) -> bool:
+    """Check if text is in Somali language"""
+    try:
+        # Skip detection for very short texts
+        if len(text.split()) < 3 or len(text) < 10:
+            return True  # Assume valid for short texts
+            
+        # Try to import langdetect dynamically
+        try:
+            from langdetect import detect, DetectorFactory
+            DetectorFactory.seed = 0
+            language = detect(text)
+            return language == 'so'
+        except ImportError:
+            logger.warning("langdetect package not installed. Skipping language detection.")
+            return True
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+def validate_input(text: str) -> None:
+    """Validate user input against various constraints"""
+    # 1. Check for empty input
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text input cannot be empty")
+    
+    # 2. Check for numbers only
+    if text.strip().replace(' ', '').isdigit():
+        raise HTTPException(status_code=400, detail="Input contains only numbers. Please enter text.")
+    
+    # 3. Check for emojis
+    if EMOJI_PATTERN.search(text):
+        raise HTTPException(status_code=400, detail="Emojis are not allowed. Please remove them.")
+    
+    # 4. Check for non-Somali characters
+    disallowed_chars = set()
+    for char in text:
+        if char.isspace():
+            continue
+        if char not in ALLOWED_CHARS and not char.isdigit():
+            disallowed_chars.add(char)
+    
+    if disallowed_chars:
+        sample = ''.join(list(disallowed_chars)[:5])
+        if len(disallowed_chars) > 5:
+            sample += "..."
+        raise HTTPException(
+            status_code=400,
+            detail=f"Input contains disallowed characters: {sample}"
+        )
+    
+    # 5. Check if text is English
+    if not is_somali(text):
+        raise HTTPException(status_code=400, detail="The text is in English, not Somali.")
 
 # ================================
 # TEXT PREPROCESSING FUNCTION
@@ -121,7 +204,15 @@ def predict_somberta(text: str) -> Dict[str, Any]:
         # Basic length checks
         if len(processed_text.strip()) < 30 or len(processed_text.strip().split()) < 5:
             processing_time = time.time() - start_time
-            
+            return {
+                "model": "SomBERTa",
+                "type": "Insufficient Input",
+                "confidence": 0.0,
+                "processing_time": processing_time,
+                "accuracy": "N/A",
+                "speed": f"{processing_time:.3f}s"
+            }
+        
         # Tokenization and prediction
         inputs = somberta_tokenizer(
             processed_text,
@@ -139,10 +230,24 @@ def predict_somberta(text: str) -> Dict[str, Any]:
             predicted_class = torch.argmax(logits, dim=1).item()
             confidence = float(probabilities[predicted_class])
         
+        # Map class index to label
+        class_label = "Poetry" if predicted_class == 1 else "Prose"
+        
+        processing_time = time.time() - start_time
+        
+        return {
+            "model": "SomBERTa",
+            "type": class_label,
+            "confidence": confidence,
+            "processing_time": processing_time,
+            "accuracy": "94.8%",
+            "speed": f"{processing_time:.3f}s"
+        }
         
     except Exception as e:
         logger.error(f"SomBERTa prediction error: {str(e)}")
-     
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
 # ================================
 # API ENDPOINTS
 # ================================
@@ -176,14 +281,19 @@ async def root():
 async def classify_with_somberta(input_data: TextInput):
     """Classify text using SomBERTa model (94.8% accuracy)"""
     try:
-        if not input_data.text.strip():
-            raise HTTPException(status_code=400, detail="Text input cannot be empty")
+        # Validate input against all constraints
+        validate_input(input_data.text)
         
+        # Process and classify
         result = predict_somberta(input_data.text)
         return ClassificationResponse(**result)
     
+    except HTTPException as he:
+        # Re-raise validation exceptions
+        raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"SomBERTa classification error: {str(e)}")
+        logger.exception("Classification error")
+        raise HTTPException(status_code=500, detail=f"Classification error: {str(e)}")
 
 @app.get("/model")
 async def get_model():
