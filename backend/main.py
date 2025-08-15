@@ -14,16 +14,43 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import logging
 from datetime import datetime
 from typing import Dict, Any
+from contextlib import asynccontextmanager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Global model variables
+somberta_model = None
+somberta_tokenizer = None
+
+# Add device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan handler for model loading"""
+    logger.info("🚀 Starting Somali Text AI Classifier...")
+    logger.info("📦 Loading SomBERTa model...")
+    
+    # Load model
+    somberta_loaded = load_somberta()
+    
+    if somberta_loaded:
+        logger.info("✅ SomBERTa model loaded successfully")
+    else:
+        logger.error("❌ Failed to load SomBERTa model")
+    
+    yield
+    # Cleanup on shutdown
+    logger.info("🔴 Shutting down application")
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="Somali Text AI Classifier - SomBERTa",
     description="API for Somali text classification using the SomBERTa model",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS configuration
@@ -77,19 +104,12 @@ EMOJI_PATTERN = re.compile(
     flags=re.UNICODE
 )
 
-# Global model variables
-somberta_model = None
-somberta_tokenizer = None
-
-# Add device configuration at the top
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 def load_somberta():
     """Load SomBERTa model"""
     global somberta_model, somberta_tokenizer
     try:
         model_path = r"C:\Users\zakim\OneDrive\Desktop\ALL MODELS\LLMs models\poetry_prose_somberta_model"
-        somberta_model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        somberta_model = AutoModelForSequenceClassification.from_pretrained(model_path).to(device)
         somberta_tokenizer = AutoTokenizer.from_pretrained(model_path)
         logger.info("✅ SomBERTa model loaded successfully!")
         return True
@@ -155,7 +175,7 @@ def validate_input(text: str) -> None:
     
     # 5. Check if text is English
     if not is_somali(text):
-        raise HTTPException(status_code=400, detail="The text is in English, not Somali.")
+        raise HTTPException(status_code=400, detail="The text is not in Somali.")
 
 # ================================
 # TEXT PREPROCESSING FUNCTION
@@ -220,13 +240,13 @@ def predict_somberta(text: str) -> Dict[str, Any]:
             padding=True,
             truncation=True,
             max_length=512
-        )
+        ).to(device)
         
         somberta_model.eval()
         with torch.no_grad():
             outputs = somberta_model(**inputs)
             logits = outputs.logits
-            probabilities = torch.softmax(logits, dim=1).numpy()[0]
+            probabilities = torch.softmax(logits, dim=1).cpu().numpy()[0]
             predicted_class = torch.argmax(logits, dim=1).item()
             confidence = float(probabilities[predicted_class])
         
@@ -251,22 +271,6 @@ def predict_somberta(text: str) -> Dict[str, Any]:
 # ================================
 # API ENDPOINTS
 # ================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Load model on startup"""
-    logger.info("🚀 Starting Somali Text AI Classifier...")
-    logger.info("📦 Loading SomBERTa model...")
-    
-    # Load model
-    somberta_loaded = load_somberta()
-    
-    if somberta_loaded:
-        logger.info("✅ SomBERTa model loaded successfully")
-    else:
-        logger.error("❌ Failed to load SomBERTa model")
-    
-    logger.info("🌐 API server ready at http://localhost:8000")
 
 @app.get("/")
 async def root():
@@ -319,6 +323,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app, 
         host="0.0.0.0", 
-        port=8000,
+        port=8001,  # Changed port to 8001
         log_level="info"
     )
