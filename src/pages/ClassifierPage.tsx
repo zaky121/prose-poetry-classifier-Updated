@@ -45,7 +45,7 @@ const ClassifierPage: React.FC = () => {
   const classifyWithModel = async (inputText: string): Promise<ModelResult> => {
     try {
       // Call the SomBERTa model endpoint
-      const response = await fetch(`http://localhost:8000/classify/somberta`, {
+      const response = await fetch(`http://localhost:8001/classify/somberta`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,8 +61,8 @@ const ClassifierPage: React.FC = () => {
           model: sombertaModel.name,
           type: 'error',
           confidence: 0,
-          processingTime: 0.1,
-          errorMessage: data.detail
+          processingTime: data.processing_time || 0.1,
+          errorMessage: data.detail || data.error_detail || 'Validation error'
         };
       }
       
@@ -70,23 +70,16 @@ const ClassifierPage: React.FC = () => {
         model: data.model,
         type: data.type.toLowerCase() as 'prose' | 'poetry',
         confidence: data.confidence,
-        processingTime: data.processing_time
+        processingTime: data.processing_time || 0.1
       };
     } catch (error) {
       console.error(`Error calling SomBERTa model:`, error);
       
-      // Fallback to local classification if backend is not available
-      const lines = inputText.split('\n').filter(line => line.trim());
-      const poetryScore = lines.length > 1 ? 0.7 : 0.3;
-      const isPoetry = poetryScore > 0.5;
-      
-      return {
-        model: sombertaModel.name,
-        type: isPoetry ? 'poetry' : 'prose',
-        confidence: poetryScore,
-        processingTime: 0.15
-      };
+    
     }
+    
+    // This should never be reached, but TypeScript needs it for control flow analysis
+    throw new Error('Unexpected code path in classifyWithModel');
   };
 
   const handleAnalyze = async () => {
@@ -147,8 +140,8 @@ const ClassifierPage: React.FC = () => {
     
     const isPoetry = result.type === 'poetry';
     const confidence = result.confidence * 100;
-    const remaining = 100 - confidence;
-    
+    const processingTime = result.processingTime || 0; // Safeguard against undefined
+
     const circumference = 2 * Math.PI * 45;
     const strokeDasharray = `${(confidence / 100) * circumference} ${circumference}`;
     
@@ -200,7 +193,7 @@ const ClassifierPage: React.FC = () => {
             {isPoetry ? 'Poetry' : 'Prose'}
           </div>
           <div className={`text-sm ${isPoetry ? 'text-violet-200' : 'text-pink-200'} mt-1 font-light`}>
-            {result.processingTime.toFixed(3)}s
+            {processingTime.toFixed(3)}s
           </div>
         </div>
       </div>
@@ -287,7 +280,7 @@ const ClassifierPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 mr-2 spin" />
+                      <Sparkles className="w-5 h-5 mr-2 animate-spin" />
                       Analyze Text
                     </div>
                   )}
@@ -302,10 +295,7 @@ const ClassifierPage: React.FC = () => {
                     <Shield className="w-4 h-4 mr-2 text-blue-300" />
                     <span>No numbers only or emojis allowed</span>
                   </p>
-                  <p className="flex items-center">
-                    <Award className="w-4 h-4 mr-2 text-green-300" />
-                    <span>Minimum 5 words for accurate classification</span>
-                  </p>
+
                 </div>
               </div>
             </div>
@@ -349,28 +339,32 @@ const ClassifierPage: React.FC = () => {
                         <span className="text-gray-200 font-light">Model:</span>
                         <span className="text-white font-medium font-serif">{sombertaModel.name}</span>
                       </div>
-                      {result.type !== 'error' && (
-                        <>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-200 font-light">Confidence:</span>
-                            <span className="text-pink-300 font-bold font-serif animate-pulse">{(result.confidence * 100).toFixed(1)}%</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-200 font-light">Processing Time:</span>
-                            <span className="text-pink-300 font-bold font-serif">{result.processingTime.toFixed(3)}s</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-200 font-light">Classification:</span>
-                            <span className={`font-bold font-serif ${result.type === 'poetry' ? 'text-violet-300' : 'text-pink-300'}`}>
-                              {result.type === 'poetry' ? 'Poetry (Tix)' : 'Prose (Tiraab)'}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      {result.type === 'error' && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-200 font-light">Confidence:</span>
+                        <span className="text-pink-300 font-bold font-serif animate-pulse">
+                          {result.confidence ? (result.confidence * 100).toFixed(1) + '%' : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-200 font-light">Processing Time:</span>
+                        <span className="text-pink-300 font-bold font-serif">
+                          {result.processingTime ? result.processingTime.toFixed(3) + 's' : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-200 font-light">Classification:</span>
+                        <span className={`font-bold font-serif ${
+                          result.type === 'poetry' ? 'text-violet-300' : 
+                          result.type === 'prose' ? 'text-pink-300' : 'text-red-300'
+                        }`}>
+                          {result.type === 'poetry' ? 'Poetry (Tix)' : 
+                           result.type === 'prose' ? 'Prose (Tiraab)' : 'Error'}
+                        </span>
+                      </div>
+                      {result.errorMessage && (
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-200 font-light">Status:</span>
-                          <span className="text-red-300 font-bold font-serif">Validation Error</span>
+                          <span className="text-gray-200 font-light">Error:</span>
+                          <span className="text-red-300 font-medium">{result.errorMessage}</span>
                         </div>
                       )}
                     </div>
@@ -381,7 +375,7 @@ const ClassifierPage: React.FC = () => {
               {!result && !isAnalyzing && (
                 <div className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-violet-400/30 text-center group hover:border-violet-400/50 transition-all duration-500">
                   <div className="text-6xl mb-4 animate-bounce "></div>
-                  <h3 className="text-2xl font-bold text- mb-2 font-serif group-hover:text-pink-200 transition-colors duration-300">Ready to Analyze</h3>
+                  <h3 className="text-2xl font-bold text-white mb-2 font-serif group-hover:text-pink-200 transition-colors duration-300">Ready to Analyze</h3>
                   <p className="text-gray-200 font-light">
                     Enter Somali text to classify with SomBERTa model
                   </p>

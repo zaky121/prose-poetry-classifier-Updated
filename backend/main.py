@@ -71,8 +71,7 @@ class ClassificationResponse(BaseModel):
     type: str
     confidence: float
     processing_time: float
-    accuracy: str
-    speed: str
+
 
 # Constants
 SOMALI_ALPHABET = (
@@ -213,24 +212,29 @@ def preprocessor_somberta(text: str) -> str:
 
 def predict_somberta(text: str) -> Dict[str, Any]:
     """SomBERTa prediction"""
-    if not somberta_model or not somberta_tokenizer:
-        raise HTTPException(status_code=503, detail="SomBERTa model not loaded")
-    
     start_time = time.time()
+    processing_time = time.time() - start_time
+    
+    if not somberta_model or not somberta_tokenizer:
+        return {
+            "model": "SomBERTa",
+            "type": "error",
+            "confidence": 0.0,
+            "processing_time": processing_time,
+            "error_detail": "Model not loaded"
+        }
     
     try:
         processed_text = preprocessor_somberta(text)
         
         # Basic length checks
-        if len(processed_text.strip()) < 30 or len(processed_text.strip().split()) < 5:
-            processing_time = time.time() - start_time
+        if len(processed_text.strip()) < 30 or len(processed_text.split()) < 5:
             return {
                 "model": "SomBERTa",
-                "type": "Insufficient Input",
+                "type": "error",
                 "confidence": 0.0,
-                "processing_time": processing_time,
-                "accuracy": "N/A",
-                "speed": f"{processing_time:.3f}s"
+                "processing_time": time.time() - start_time,
+                "error_detail": "Input too short"
             }
         
         # Tokenization and prediction
@@ -247,26 +251,35 @@ def predict_somberta(text: str) -> Dict[str, Any]:
             outputs = somberta_model(**inputs)
             logits = outputs.logits
             probabilities = torch.softmax(logits, dim=1).cpu().numpy()[0]
-            predicted_class = torch.argmax(logits, dim=1).item()
+            predicted_class = int(torch.argmax(torch.tensor(probabilities)).item())
             confidence = float(probabilities[predicted_class])
+
+        # Log prediction details
+            print("predicted_class:", predicted_class)
+
+            print("logits:", logits)
+
+            print("probabilities:", probabilities)
         
         # Map class index to label
-        class_label = "Poetry" if predicted_class == 1 else "Prose"
-        
-        processing_time = time.time() - start_time
+        class_label = "prose" if predicted_class == 0 else "poetry"
         
         return {
             "model": "SomBERTa",
             "type": class_label,
             "confidence": confidence,
-            "processing_time": processing_time,
-            "accuracy": "94.8%",
-            "speed": f"{processing_time:.3f}s"
+            "processing_time": time.time() - start_time
         }
         
     except Exception as e:
         logger.error(f"SomBERTa prediction error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+        return {
+            "model": "SomBERTa",
+            "type": "error",
+            "confidence": 0.0,
+            "processing_time": time.time() - start_time,
+            "error_detail": str(e)
+        }
 
 # ================================
 # API ENDPOINTS
@@ -283,21 +296,43 @@ async def root():
 
 @app.post("/classify/somberta", response_model=ClassificationResponse)
 async def classify_with_somberta(input_data: TextInput):
-    """Classify text using SomBERTa model (94.8% accuracy)"""
+    """Classify text using SomBERTa model"""
+    start_time = time.time()
+    
     try:
         # Validate input against all constraints
         validate_input(input_data.text)
         
         # Process and classify
         result = predict_somberta(input_data.text)
-        return ClassificationResponse(**result)
+        
+        # If result is error, raise exception with detail
+        if result["type"] == "error":
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error_detail", "Classification error")
+            )
+        
+        return ClassificationResponse(
+            model=result["model"],
+            type=result["type"],
+            confidence=result["confidence"],
+            processing_time=result["processing_time"]
+        )
     
     except HTTPException as he:
         # Re-raise validation exceptions
         raise he
     except Exception as e:
         logger.exception("Classification error")
-        raise HTTPException(status_code=500, detail=f"Classification error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Classification error",
+                "detail": str(e),
+                "processing_time": time.time() - start_time
+            }
+        )
 
 @app.get("/model")
 async def get_model():
@@ -323,6 +358,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app, 
         host="0.0.0.0", 
-        port=8001,  # Changed port to 8001
+        port=8001,
         log_level="info"
     )

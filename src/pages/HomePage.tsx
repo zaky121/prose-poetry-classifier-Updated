@@ -24,6 +24,13 @@ const HomePage: React.FC = () => {
   }, []);
 
   const aiModels = [
+     {
+      name: 'SomBERTa',
+      description: 'Specialized BERT model fine-tuned specifically for Somali language understanding and classification.',
+      icon: Shield,
+      gradient: 'from-rose-500 via-pink-500 to-red-500',
+      features: ['Somali Optimized', 'High Accuracy', 'Cultural Context']
+    },
     {
       name: 'RNN Classifier',
       description: 'Recurrent Neural Network optimized for sequential text analysis with fast processing capabilities.',
@@ -39,13 +46,6 @@ const HomePage: React.FC = () => {
       features: ['Long-term Memory', 'Pattern Recognition', 'Context Aware']
     },
     {
-      name: 'SomBERTa',
-      description: 'Specialized BERT model fine-tuned specifically for Somali language understanding and classification.',
-      icon: Shield,
-      gradient: 'from-rose-500 via-pink-500 to-red-500',
-      features: ['Somali Optimized', 'High Accuracy', 'Cultural Context']
-    },
-    {
       name: 'AfriBERTa',
       description: 'Pan-African BERT model trained on multiple African languages including advanced Somali processing.',
       icon: Award,
@@ -58,19 +58,19 @@ const HomePage: React.FC = () => {
     {
       icon: Brain,
       title: 'Advanced AI Models',
-      description: 'Four cutting-edge machine learning models SomBERTa for superior text classification.',
+      description: 'Isticmaalka SomBERT oo la sii habeeyey (fine-tune) si loo wanaajiyo kala-saarista qoraalka.',
       gradient: 'from-violet-500 to-purple-600'
     },
     {
       icon: BookOpen,
-      title: 'Authentic Somali Content',
-      description: 'Explore genuine Somali articles and literary works from renowned authors and contemporary writers.',
+      title: 'Nuxurka Saxda ah ee Soomaaliga',
+      description: 'Ku soo booqo maqaallo iyo suugaan Soomaali dhab ah oo ka timid qorayaasha caanka ah iyo qorayaasha casriga ah.',
       gradient: 'from-fuchsia-500 to-pink-600'
     },
     {
       icon: Feather,
-      title: 'Poetry Archive',
-      description: 'Discover the rich tradition of Somali poetry featuring works from legendary poets like Abwaan Hadraawi.',
+      title: 'Kaydka gabayada',
+      description: 'Ka faa’iidayso dhaqanka hodanka ah ee maansada Soomaaliyeed, oo ay ku jiraan hal-abuurro caan ah sida Abwaan Hadraawi..',
       gradient: 'from-pink-500 to-rose-600'
     }
   ];
@@ -248,33 +248,7 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-24 px-4">
-          <div className="max-w-6xl mx-auto text-center">
-            <div className="bg-gradient-to-r from-violet-500/20 via-fuchsia-500/20 to-pink-500/20 backdrop-blur-lg rounded-3xl border border-violet-400/40 p-16 hover:shadow-2xl hover:shadow-violet-500/25 transition-all duration-700 group">
-              <h2 className="text-5xl md:text-6xl font-serif font-bold text-white mb-8 group-hover:scale-105 transition-transform duration-500">
-                Ready to Explore?
-              </h2>
-              <p className="text-2xl text-gray-100 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
-                Join thousands of users discovering the beauty of Somali literature through advanced AI analysis
-              </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                <Link
-                  to="/signup"
-                  className="px-10 py-5 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 rounded-2xl text-white font-bold text-xl transition-all duration-500 shadow-2xl hover:shadow-violet-500/50 transform hover:-translate-y-3 hover:scale-105 font-serif"
-                >
-                  Get Started Free
-                </Link>
-                <Link
-                  to="/prose"
-                  className="px-10 py-5 bg-gradient-to-r from-white/10 to-white/5 hover:from-white/20 hover:to-white/10 backdrop-blur-sm border border-violet-400/50 rounded-2xl text-white font-bold text-xl transition-all duration-500 hover:shadow-2xl hover:shadow-violet-500/25 transform hover:-translate-y-3 hover:scale-105 font-serif"
-                >
-                  Browse Content
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        
       </div>
     </div>
   );
